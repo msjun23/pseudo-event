@@ -11,9 +11,10 @@ from mamba_ssm import MambaLMHeadModel
 from mamba_ssm.models.config_mamba import MambaConfig
 
 from utils.rb_image import save_as_rb_img, return_as_rb_img
-from utils.helper import pad_array_to_match
+from utils.helper import pad_array_to_match, pad_tensor_to_match
 from models.stream_embedding import match_patches_to_vocab
 from dataset.provider import DatasetProvider
+from dataset.sequential_provider import SequentialDatasetProvider
 
 
 class EventGenerator(pl.LightningModule):
@@ -29,16 +30,24 @@ class EventGenerator(pl.LightningModule):
         
         self.cfg_dataset = cfg.dataset
         self.vocab_path = cfg.vocab_path
-        self.setup()
+        
+        self.prev_pred = None
+        self.fig_num = 0
         
     def setup(self, stage=None):
-        dataset_provider = DatasetProvider(**self.cfg_dataset.dataset)
-        self.train_dataset = dataset_provider.get_train_dataset()
-        self.test_dataset = dataset_provider.get_test_dataset()
-        
+        # At training
+        if stage == 'fit' or stage is None:
+            dataset_provider = DatasetProvider(**self.cfg_dataset.dataset)
+            self.train_dataset = dataset_provider.get_train_dataset()
+            
+            self.criterion = torch.nn.CrossEntropyLoss()
+            
+        # At inference
+        if stage == 'test' or stage is None:
+            seq_dataset_provider = SequentialDatasetProvider(**self.cfg_dataset.dataset)
+            self.test_dataset = seq_dataset_provider.get_test_dataset()
+            
         self.event_vocab = torch.load(self.vocab_path).to(self.device)
-        
-        self.criterion = torch.nn.CrossEntropyLoss()
         
     def forward(self, x):
         # Mamba LM
@@ -96,9 +105,16 @@ class EventGenerator(pl.LightningModule):
         
     def test_step(self, batch, batch_idx):
         seq_name = batch['sequence_name']
-        file_index = batch['file_index']
-        event = batch['event']['left']      # [B L C H W], B (batch size) must be '1'
+        event = batch['event']      # [B L C H W], B (batch size) must be '1'
+        real_event = batch['event']
+        H, W = event.shape[3:]
+        h, w = H//2, W//3   # event patch size: [c=2 h=2 w=3]
         
+        # Update input event stream using previous prediction
+        if self.prev_pred is not None:
+            # event = (event.bool() | self.prev_pred.bool()).float()
+            event = self.prev_pred
+            
         with torch.no_grad():
             event_b = []
             for lchw in event:
@@ -118,7 +134,20 @@ class EventGenerator(pl.LightningModule):
         Calculate loss using above pairs
         '''
         
-        self._show_sequences(event, pred_indices)
+        # Save output sequence as self.prev_pred, [B L C H W]
+        pred_ev_list = []
+        for l in range(pred_indices.size(-1)):
+            patches = self.event_vocab[pred_indices[:,l]]   # [Bhw 2 2 3], B=1
+            patches = patches.view(h, w, 2, 2, 3)           # [h, w, 2, 2, 3]
+            pred_ev = patches.permute(2, 0, 3, 1, 4).contiguous().view(2, h*2, w*3) # [2 H W]
+            
+            if not event[0,l,...].shape == pred_ev.shape:    # [C H W]
+                pred_ev = pad_tensor_to_match(event[0,l,...], pred_ev)
+            pred_ev_list.append(pred_ev)
+        self.prev_pred = torch.stack(pred_ev_list, dim=0).unsqueeze(dim=0).float()  # [B L C H W]
+        
+        # self._show_sequences(event, pred_indices)
+        self._show_sequences_3row(real_event, event, pred_indices)
         
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
@@ -169,6 +198,46 @@ class EventGenerator(pl.LightningModule):
         plt.savefig('sequence_vis.png')
         plt.clf()
         plt.close()
+        
+    def _show_sequences_3row(self, real_event, event, pred_indices):
+        # event_input: [B L C H W]
+        # pred_indices: [Bhw L]
+        H, W = event.shape[3:]
+        h, w = H//2, W//3   # event patch size: [c=2 h=2 w=3]
+        
+        # Set figure size (row: 3, column: num_iterations)
+        num_iter = pred_indices.size(-1) - 1    # Except last timestep; no comparable input
+        fig, axes = plt.subplots(3, num_iter, figsize=(num_iter * 2, 4))
+        for l in range(num_iter):
+            real = return_as_rb_img(real_event[0,l+1,...])  # batch size must be 1, np, (H W 3)
+            
+            # save_as_rb_img(event[0,l,...], f'original_img_{l}.png')
+            input_ev = return_as_rb_img(event[0,l+1,...])   # batch size must be 1, np, (H W 3)
+            
+            patches = self.event_vocab[pred_indices[:,l]]   # [Bhw 2 2 3], B=1
+            patches = patches.view(h, w, 2, 2, 3)           # [h, w, 2, 2, 3]
+            pred_ev = patches.permute(2, 0, 3, 1, 4).contiguous().view(2, h*2, w*3) # [2 H W]
+            # save_as_rb_img(pred_ev, f'predicted_img_{l}.png')
+            pred_ev = return_as_rb_img(pred_ev)             # np, (H W 3)
+            
+            if not input_ev.shape == pred_ev.shape:
+                pred_ev = pad_array_to_match(input_ev, pred_ev)
+            
+            axes[0, l].set_title(f'timestep={l+1}, prev_pred', fontsize=10)  # Add title to the top row
+            axes[0, l].imshow(real)
+            axes[0, l].axis('off')
+            axes[1, l].set_title(f'prev_pred', fontsize=10)
+            axes[1, l].imshow(input_ev)
+            axes[1, l].axis('off')
+            axes[2, l].set_title(f'predicted', fontsize=10)
+            axes[2, l].imshow(pred_ev)
+            axes[2, l].axis('off')
+        # Save figure
+        plt.tight_layout()
+        plt.savefig(f'sequence_vis_{self.fig_num}.png')
+        plt.clf()
+        plt.close()
+        self.fig_num += 1
     
     def _save_model_checkpoint(self):
         # Include loss info to file name
