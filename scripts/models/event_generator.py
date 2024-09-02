@@ -223,7 +223,7 @@ class EventGenerator(pl.LightningModule):
             if not input_ev.shape == pred_ev.shape:
                 pred_ev = pad_array_to_match(input_ev, pred_ev)
             
-            axes[0, l].set_title(f'timestep={l+1}, prev_pred', fontsize=10)  # Add title to the top row
+            axes[0, l].set_title(f'timestep={l+1}, real input', fontsize=10)  # Add title to the top row
             axes[0, l].imshow(real)
             axes[0, l].axis('off')
             axes[1, l].set_title(f'prev_pred', fontsize=10)
