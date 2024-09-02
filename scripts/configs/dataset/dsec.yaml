@@ -1,0 +1,31 @@
+dataset:
+  dataset_path: /root/data/DSEC
+  stereo: False
+  disp_gt: False
+  representation: on_off
+  delta_t_ms: 50
+  num_bins: 10
+  crop_height: 432
+  crop_width: 576
+  pad_height: 480
+  pad_width: 648
+dataloader:
+  train:
+    batch_size: 1
+    shuffle: True
+    drop_last: False
+    num_workers: 8
+  validation:
+    batch_size: 1
+    shuffle: False
+    drop_last: False
+    num_workers: 8
+  test:
+    batch_size: 1
+    shuffle: False
+    drop_last: False
+    num_workers: 8
+show:
+  train: True
+  validation: True
+  test: True

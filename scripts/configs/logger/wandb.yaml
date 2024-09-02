@@ -1,0 +1,8 @@
+wandb:
+  project: pseudo_event
+  # name: pseudo_event
+  group: ""
+  job_type: training
+  mode: online  # choices=['online', 'offline', 'disabled']
+  save_dir: "."
+  id: null      # pass correct id to resume experiment!

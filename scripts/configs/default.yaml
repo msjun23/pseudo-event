@@ -1,0 +1,14 @@
+defaults:
+  - _self_
+  - trainer: dsec
+  - model: default
+  - logger: wandb
+
+seed: 42
+
+hydra:
+  run:
+    dir: /root/code/outputs/${now:%Y-%m-%d}/${now:%H-%M-%S-%f}
+    # dir: /root/code/outputs/test
+  job:
+    chdir: True
