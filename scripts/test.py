@@ -33,7 +33,7 @@ def set_random_seed(seed):
     # Pytorch-Lightning
     pl.seed_everything(seed)
     
-def train(cfg):
+def test(cfg):
     torch.set_float32_matmul_precision(cfg.trainer.gpu_precision)
     
     # Initialize WandB Logger
@@ -43,6 +43,7 @@ def train(cfg):
     model = getattr(models, cfg.model.name)(cfg.model)
     # Load pretrained weights if specified
     if cfg.model.ckpt_path is not None:
+        print(f'\n Load from {cfg.model.ckpt_path} \n')
         checkpoint = torch.load(cfg.model.ckpt_path)
         model.load_state_dict(checkpoint['state_dict'])
     else:
@@ -65,8 +66,8 @@ def main(cfg: OmegaConf):
     source_folder = '/root/code/scripts'
     shutil.copytree(source_folder, 'scripts')
     
-    # Train
-    train(cfg)
+    # Test
+    test(cfg)
     print('\n', '# Save dir: ', HydraConfig.get().run.dir, '\n')
     
 if __name__=='__main__':
