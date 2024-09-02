@@ -4,7 +4,7 @@ import torch
 import torch.utils.data
 from tqdm import tqdm
 from pathlib import Path
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 
 from dataset.constant import SEQ_DATA_SPLIT
 from dataset.utils.representations import VoxelGrid, OnOffFrame
