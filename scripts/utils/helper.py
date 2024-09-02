@@ -22,3 +22,22 @@ def pad_array_to_match(origin, pred):
         padded_pred = pred
     
     return padded_pred
+
+
+def pad_tensor_to_match(origin, pred):
+    # [C H W] torch tensor input
+    _, H, W = origin.shape
+    _, h, w = pred.shape
+    
+    # Pad only when pred is smaller than origin
+    if h < H or w < W:
+        pad_h = H - h
+        pad_w = W - w
+        
+        # Apply padding
+        padding = (0, pad_w, 0, pad_h)  # (left, right, top, bottom)
+        padded_pred = torch.nn.functional.pad(pred, padding, mode='constant', value=0)
+    else:
+        padded_pred = pred
+    
+    return padded_pred
