@@ -22,3 +22,9 @@ DATA_SPLIT = {
     # 'validation': ['train/zurich_city_02_a'], 
     # 'test': ['test/thun_01_a'], 
 }
+
+SEQ_DATA_SPLIT = {
+    'train': ['train/zurich_city_05_a'], 
+    'validation': ['train/zurich_city_05_a'],
+    'test': ['train/zurich_city_05_a'],
+}

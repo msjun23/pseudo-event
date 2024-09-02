@@ -6,7 +6,7 @@ from tqdm import tqdm
 from pathlib import Path
 from torch.utils.data import Dataset, DataLoader
 
-from dataset.constant import DATA_SPLIT
+from dataset.constant import SEQ_DATA_SPLIT
 from dataset.utils.representations import VoxelGrid, OnOffFrame
 from dataset.utils.eventslicer import EventSlicer
 from dataset.visualization.eventreader import EventReaderAbstract
@@ -118,7 +118,9 @@ class SequentialDataset(Dataset):
     
     
 class SequentialDatasetProvider:
-    def __init__(self, dataset_path: str, representation='on_off', delta_t_ms: int=50, num_bins=10):
+    def __init__(self, dataset_path: str, representation='on_off', delta_t_ms: int=50, num_bins=10, 
+                 stereo=True, disp_gt=True, 
+                 crop_height=480, crop_width=640, pad_height=480, pad_width=640):
         self.dataset_path = Path(dataset_path)
         assert self.dataset_path.is_dir(), str(self.dataset_path)
         
@@ -128,7 +130,7 @@ class SequentialDatasetProvider:
         
     def get_train_dataset(self):
         train_sequence = list()
-        for seq in DATA_SPLIT['train']:
+        for seq in SEQ_DATA_SPLIT['train']:
             child = self.dataset_path / seq
             if not child.is_dir():
                 continue
@@ -141,7 +143,7 @@ class SequentialDatasetProvider:
     
     def get_test_dataset(self):
         test_sequence = list()
-        for seq in DATA_SPLIT['test']:
+        for seq in SEQ_DATA_SPLIT['test']:
             child = self.dataset_path / seq
             if not child.is_dir():
                 continue
