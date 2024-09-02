@@ -1,0 +1,12 @@
+numpy
+matplotlib
+opencv-python
+einops
+hydra-core
+h5py
+hdf5plugin
+lightning
+pytorch-lightning
+causal-conv1d>=1.4.0
+mamba-ssm   # This contains safetensors, regex, huggingface-hub, tokenizers, transformers
+wandb
