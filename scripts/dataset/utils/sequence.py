@@ -36,7 +36,7 @@ class Sequence(Dataset):
                  representation: str='on_off', 
                  stereo: bool=True, disp_gt: bool=True):
         assert num_bins >= 1
-        assert delta_t_ms <= 100, 'adapt this code, if duration is higher than 100 ms'
+        # assert delta_t_ms <= 100, 'adapt this code, if duration is higher than 100 ms'
         assert seq_path.is_dir(), print(seq_path)
 
         # NOTE: Adapt this code according to the present mode (e.g. train, val or test).
