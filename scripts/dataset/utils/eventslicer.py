@@ -161,6 +161,8 @@ class EventSlicer:
         return idx_start, idx_end
 
     def ms2idx(self, time_ms: int) -> int:
+        if time_ms < 0:
+            time_ms = 0
         assert time_ms >= 0
         if time_ms >= self.ms_to_idx.size:
             return None
