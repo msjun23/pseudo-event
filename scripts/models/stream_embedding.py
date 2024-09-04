@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from einops import rearrange
 
@@ -11,14 +12,13 @@ def encode_patches_to_vocab(data):
     # w = W // 3
     
     # Apply sliding window (stride=2 in height, stride=3 in width)
-    patches = data.unfold(1, 2, 2).unfold(2, 3, 3)  # [2, h, w, 2, 3]
-    patches = rearrange(patches, 'c h w p_h p_w -> (h w) c p_h p_w')    # [h*w, 2, 2, 3]
+    patches = F.unfold(data.unsqueeze(0), kernel_size=(2,3), stride=(2,3)).squeeze().T
     
     # Match each patch to an index in event_vocab
     indices = []
     for patch in patches:
         # Convert the tensor to integer (binary)
-        binary_str = ''.join([str(int(x.item())) for x in patch.view(-1)])
+        binary_str = ''.join([str(int(x.item())) for x in patch])
         # Convert binary string to decimal
         idx = int(binary_str, 2)
         indices.append(idx)
