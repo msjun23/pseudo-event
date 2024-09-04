@@ -159,25 +159,25 @@ class EventGenerator(pl.LightningModule):
         # Optimizer
         optimizer = torch.optim.AdamW(self.parameters(), lr=1e-4, weight_decay=1e-5)
         
-        # Scheduler
-        scheduler = {
-            'scheduler': torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=step_cycle),  # T_max is the number of steps in one cycle
-            'interval': 'step',  # Update every step
-            'frequency': 1
-        }
+        # Warmup scheduler
         warmup_scheduler = {
             'scheduler': torch.optim.lr_scheduler.LambdaLR(
                 optimizer, 
-                lr_lambda=lambda step: min(1.0, step / warmup_steps)  # Warmup for given steps
+                lr_lambda=lambda step: min(1.0, step / warmup_steps)    # Warmup for given steps
             ),
             'interval': 'step',
-            'frequency': 1
+            'frequency': 1,
+            'name': 'warmup_scheduler'
+        }
+        # Cosine Annealing scheduler
+        cosine_scheduler = {
+            'scheduler': torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=step_cycle),   # T_max is the number of steps in one cycle
+            'interval': 'step', # Update every step
+            'frequency': 1,
+            'name': 'cosine_scheduler'
         }
         
-        return {
-            'optimizer': optimizer,
-            'lr_scheduler': [warmup_scheduler, scheduler]
-        }
+        return [optimizer], [warmup_scheduler, cosine_scheduler]
     
     def train_dataloader(self):
         return DataLoader(self.train_dataset, **self.cfg_dataset.dataloader.train)
