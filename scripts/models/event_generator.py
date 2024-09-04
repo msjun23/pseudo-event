@@ -156,8 +156,8 @@ class EventGenerator(pl.LightningModule):
         self._show_sequences_3row(real_event, event, pred_indices)
         
     def configure_optimizers(self):
-        step_cycle = 50
-        warmup_steps = 5
+        step_cycle = self.trainer.max_steps
+        warmup_steps = int(self.trainer.max_steps * 0.05)
         
         # Optimizer
         optimizer = torch.optim.AdamW(self.parameters(), **self.cfg_optim)
