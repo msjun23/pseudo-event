@@ -1,3 +1,4 @@
+import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -106,14 +107,16 @@ class EventGenerator(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         seq_name = batch['sequence_name']
         event = batch['event']      # [B L C H W], B (batch size) must be '1'
-        real_event = batch['event']
+        real_event = copy.deepcopy(batch['event'])  # Just for visualization
         H, W = event.shape[3:]
         h, w = H//2, W//3   # event patch size: [c=2 h=2 w=3]
         
         # Update input event stream using previous prediction
         if self.prev_pred is not None:
-            # event = (event.bool() | self.prev_pred.bool()).float()
-            event = self.prev_pred
+            # Use prev_pred if there are not enough events
+            for seq_idx in range(event.size(1)):
+                if event[0,seq_idx].mean() < 0.1:   # Not enough events in sequence
+                    event[0,seq_idx] = self.prev_pred[0,seq_idx]
             
         with torch.no_grad():
             event_b = []
@@ -138,10 +141,10 @@ class EventGenerator(pl.LightningModule):
         pred_ev_list = []
         for l in range(pred_indices.size(-1)):
             patches = self.event_vocab[pred_indices[:,l]]   # [Bhw 2 2 3], B=1
-            patches = patches.view(h, w, 2, 2, 3)           # [h, w, 2, 2, 3]
+            patches = patches.view(h, w, 2, 2, 3)           # [h w 2 2 3]
             pred_ev = patches.permute(2, 0, 3, 1, 4).contiguous().view(2, h*2, w*3) # [2 H W]
             
-            if not event[0,l,...].shape == pred_ev.shape:    # [C H W]
+            if not event[0,l,...].shape == pred_ev.shape:   # [C H W]
                 pred_ev = pad_tensor_to_match(event[0,l,...], pred_ev)
             pred_ev_list.append(pred_ev)
         self.prev_pred = torch.stack(pred_ev_list, dim=0).unsqueeze(dim=0).float()  # [B L C H W]
@@ -200,43 +203,44 @@ class EventGenerator(pl.LightningModule):
         plt.close()
         
     def _show_sequences_3row(self, real_event, event, pred_indices):
-        # event_input: [B L C H W]
-        # pred_indices: [Bhw L]
-        H, W = event.shape[3:]
-        h, w = H//2, W//3   # event patch size: [c=2 h=2 w=3]
-        
-        # Set figure size (row: 3, column: num_iterations)
-        num_iter = pred_indices.size(-1) - 1    # Except last timestep; no comparable input
-        fig, axes = plt.subplots(3, num_iter, figsize=(num_iter * 2, 4))
-        for l in range(num_iter):
-            real = return_as_rb_img(real_event[0,l+1,...])  # batch size must be 1, np, (H W 3)
+        if self.fig_num % 2 == 0:
+            # event_input: [B L C H W]
+            # pred_indices: [Bhw L]
+            H, W = event.shape[3:]
+            h, w = H//2, W//3   # event patch size: [c=2 h=2 w=3]
             
-            # save_as_rb_img(event[0,l,...], f'original_img_{l}.png')
-            input_ev = return_as_rb_img(event[0,l+1,...])   # batch size must be 1, np, (H W 3)
-            
-            patches = self.event_vocab[pred_indices[:,l]]   # [Bhw 2 2 3], B=1
-            patches = patches.view(h, w, 2, 2, 3)           # [h, w, 2, 2, 3]
-            pred_ev = patches.permute(2, 0, 3, 1, 4).contiguous().view(2, h*2, w*3) # [2 H W]
-            # save_as_rb_img(pred_ev, f'predicted_img_{l}.png')
-            pred_ev = return_as_rb_img(pred_ev)             # np, (H W 3)
-            
-            if not input_ev.shape == pred_ev.shape:
-                pred_ev = pad_array_to_match(input_ev, pred_ev)
-            
-            axes[0, l].set_title(f'timestep={l+1}, real event', fontsize=10)  # Add title to the top row
-            axes[0, l].imshow(real)
-            axes[0, l].axis('off')
-            axes[1, l].set_title(f'prev_pred', fontsize=10)
-            axes[1, l].imshow(input_ev)
-            axes[1, l].axis('off')
-            axes[2, l].set_title(f'predicted', fontsize=10)
-            axes[2, l].imshow(pred_ev)
-            axes[2, l].axis('off')
-        # Save figure
-        plt.tight_layout()
-        plt.savefig(f'sequence_vis_{self.fig_num}.png')
-        plt.clf()
-        plt.close()
+            # Set figure size (row: 3, column: num_iterations)
+            num_iter = pred_indices.size(-1) - 1    # Except last timestep; no comparable input
+            fig, axes = plt.subplots(3, num_iter, figsize=(num_iter * 2, 4))
+            for l in range(num_iter):
+                real = return_as_rb_img(real_event[0,l+1,...])  # batch size must be 1, np, (H W 3)
+                
+                # save_as_rb_img(event[0,l,...], f'original_img_{l}.png')
+                input_ev = return_as_rb_img(event[0,l+1,...])   # batch size must be 1, np, (H W 3)
+                
+                patches = self.event_vocab[pred_indices[:,l]]   # [Bhw 2 2 3], B=1
+                patches = patches.view(h, w, 2, 2, 3)           # [h, w, 2, 2, 3]
+                pred_ev = patches.permute(2, 0, 3, 1, 4).contiguous().view(2, h*2, w*3) # [2 H W]
+                # save_as_rb_img(pred_ev, f'predicted_img_{l}.png')
+                pred_ev = return_as_rb_img(pred_ev)             # np, (H W 3)
+                
+                if not input_ev.shape == pred_ev.shape:
+                    pred_ev = pad_array_to_match(input_ev, pred_ev)
+                
+                axes[0, l].set_title(f'timestep={l+1}, real event', fontsize=10)  # Add title to the top row
+                axes[0, l].imshow(real)
+                axes[0, l].axis('off')
+                axes[1, l].set_title(f'input', fontsize=10)
+                axes[1, l].imshow(input_ev)
+                axes[1, l].axis('off')
+                axes[2, l].set_title(f'predicted', fontsize=10)
+                axes[2, l].imshow(pred_ev)
+                axes[2, l].axis('off')
+            # Save figure
+            plt.tight_layout()
+            plt.savefig(f'sequence_vis_{self.fig_num}.png')
+            plt.clf()
+            plt.close()
         self.fig_num += 1
     
     def _save_model_checkpoint(self):
