@@ -1,6 +1,7 @@
 defaults:
   - _self_
   - /dataset: dsec
+  - /optimizer: adamw
 
 name: EventGenerator
 # stream_embedding:
@@ -11,8 +12,9 @@ name: EventGenerator
 #   padding: 1
 #   step_mode: m
 vocab_path: /root/code/event_vocab.pt
-ckpt_path: null
-# ckpt_path: /root/code/outputs/2024-08-30/15-40-32-861592-train-ratio-0.001-10ms-10bins/checkpoints/step_30_loss_1.1522.ckpt
+# ckpt_path: null
+# ckpt_path: /root/code/outputs/2024-08-30/17-54-41-785679-train-ratio-0.001-100ms-10bins/checkpoints/step_30_loss_2.4370.ckpt
+ckpt_path: /root/code/outputs/ckpts/server24_step_97_loss_0.5346.ckpt
 mamba:
   d_model: 512
   d_intermediate: 0
