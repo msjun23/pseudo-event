@@ -89,10 +89,14 @@ class EventGenerator(pl.LightningModule):
         '''
         logits = logits[:,:-1,:]
         self_gt = event_indices[:,1:]
+        non_zero_mask = self_gt!=0
+        
+        logits = logits[non_zero_mask]
+        self_gt = self_gt[non_zero_mask]
         
         self._show_sequences(event, pred_indices)
         
-        loss = self.criterion(rearrange(logits, 'Bhw L V -> (Bhw L) V'), rearrange(self_gt, 'Bhw L -> (Bhw L)'))
+        loss = self.criterion(logits, self_gt)
         self.log('train_loss', loss, on_step=True, on_epoch=False, prog_bar=True, logger=True)
         return loss
     
