@@ -89,6 +89,8 @@ class EventGenerator(pl.LightningModule):
         '''
         logits = logits[:,:-1,:]
         self_gt = event_indices[:,1:]
+        logits = rearrange(logits, 'Bhw L V -> (Bhw L) V')
+        self_gt = rearrange(self_gt, 'Bhw L -> (Bhw L)')
         
         self._show_sequences(event, pred_indices)
         
