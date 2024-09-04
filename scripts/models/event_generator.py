@@ -89,10 +89,8 @@ class EventGenerator(pl.LightningModule):
         '''
         logits = logits[:,:-1,:]
         self_gt = event_indices[:,1:]
-        non_zero_mask = self_gt!=0
-        
-        logits = logits[non_zero_mask]
-        self_gt = self_gt[non_zero_mask]
+        logits = logits[self_gt!=0]
+        self_gt = self_gt[self_gt!=0]
         
         self._show_sequences(event, pred_indices)
         
