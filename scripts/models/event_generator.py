@@ -30,6 +30,7 @@ class EventGenerator(pl.LightningModule):
         self.mamba_lm = MambaLMHeadModel(mamba_cfg)
         
         self.cfg_dataset = cfg.dataset
+        self.cfg_optim = cfg.optimizer
         self.vocab_path = cfg.vocab_path
         
         self.prev_pred = None
@@ -157,7 +158,7 @@ class EventGenerator(pl.LightningModule):
         warmup_steps = 5
         
         # Optimizer
-        optimizer = torch.optim.AdamW(self.parameters(), lr=1e-4, weight_decay=1e-5)
+        optimizer = torch.optim.AdamW(self.parameters(), **self.cfg_optim)
         
         # Warmup scheduler
         warmup_scheduler = {
