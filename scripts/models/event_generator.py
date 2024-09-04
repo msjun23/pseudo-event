@@ -13,7 +13,7 @@ from mamba_ssm.models.config_mamba import MambaConfig
 
 from utils.rb_image import save_as_rb_img, return_as_rb_img
 from utils.helper import pad_array_to_match, pad_tensor_to_match
-from models.stream_embedding import match_patches_to_vocab
+from models.stream_embedding import encode_patches_to_vocab
 from dataset.provider import DatasetProvider
 from dataset.sequential_provider import SequentialDatasetProvider
 
@@ -73,7 +73,7 @@ class EventGenerator(pl.LightningModule):
             for lchw in event:
                 event_l = []
                 for chw in lchw:
-                    event_l.append(match_patches_to_vocab(self.event_vocab, chw))
+                    event_l.append(encode_patches_to_vocab(chw))
                 event_l = torch.stack(event_l)  # [L hw]
                 event_b.append(event_l)
             event_b = torch.stack(event_b)      # [B L hw]
@@ -123,7 +123,7 @@ class EventGenerator(pl.LightningModule):
             for lchw in event:
                 event_l = []
                 for chw in lchw:
-                    event_l.append(match_patches_to_vocab(self.event_vocab, chw))
+                    event_l.append(encode_patches_to_vocab(chw))
                 event_l = torch.stack(event_l)  # [L hw]
                 event_b.append(event_l)
             event_b = torch.stack(event_b)      # [B L hw]

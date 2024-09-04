@@ -4,7 +4,7 @@ import torch.nn as nn
 from einops import rearrange
 
 
-def match_patches_to_vocab(event_vocab, data):
+def encode_patches_to_vocab(data):
     # Patch size is [2 2 3], [c h w]
     # _, H, W = data.shape
     # h = H // 2
@@ -17,9 +17,10 @@ def match_patches_to_vocab(event_vocab, data):
     # Match each patch to an index in event_vocab
     indices = []
     for patch in patches:
-        # Find the index in event_vocab that matches the patch
-        matches = (event_vocab == patch).all(dim=1).all(dim=1).all(dim=1)
-        idx = matches.nonzero(as_tuple=True)[0].item()
+        # Convert the tensor to integer (binary)
+        binary_str = ''.join([str(int(x.item())) for x in patch.view(-1)])
+        # Convert binary string to decimal
+        idx = int(binary_str, 2)
         indices.append(idx)
         
     # Convert indices to a tensor
