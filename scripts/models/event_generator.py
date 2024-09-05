@@ -247,13 +247,14 @@ class EventGenerator(pl.LightningModule):
             h, w = H//2, W//3   # event patch size: [c=2 h=2 w=3]
             
             # Set figure size (row: 3, column: num_iterations)
-            num_iter = pred_indices.size(-1) - 1    # Except fist timestep; no comparable output
+            # num_iter = pred_indices.size(-1) - 1    # Except fist timestep; no comparable output
+            num_iter = pred_indices.size(-1)
             fig, axes = plt.subplots(3, num_iter, figsize=(num_iter * 2, 4))
             for l in range(num_iter):
-                real = real_event[0,l+1,...]
+                real = real_event[0,l,...]
                 real_np = return_as_rb_img(real)    # batch size must be 1, np, (H W 3)
                 
-                input_ev = event[0,l+1,...]                 # [C H W]
+                input_ev = event[0,l,...]                 # [C H W]
                 # save_as_rb_img(input_ev, f'original_img_{l}.png')
                 input_ev_np = return_as_rb_img(input_ev)    # batch size must be 1, np, (H W 3)
                 
@@ -267,14 +268,15 @@ class EventGenerator(pl.LightningModule):
                     pred_ev_np = pad_array_to_match(input_ev_np, pred_ev_np)
                 assert input_ev_np.shape == pred_ev_np.shape
                 
-                pix_err = np.abs(real_np/255 - pred_ev_np/255).sum() / (2*H*W) * 100.
-                axes[0, l].set_title(f'timestep={l+1}, real event', fontsize=10)  # Add title to the top row
+                # pix_err = np.abs(real_np/255 - pred_ev_np/255).sum() / (2*H*W) * 100.
+                axes[0, l].set_title(f'timestep={l}, real event', fontsize=10)  # Add title to the top row
                 axes[0, l].imshow(real_np)
                 axes[0, l].axis('off')
                 axes[1, l].set_title(f'input', fontsize=10)
                 axes[1, l].imshow(input_ev_np)
                 axes[1, l].axis('off')
-                axes[2, l].set_title(f'predicted, pix_err: {pix_err:.2f}%', fontsize=10)
+                axes[2, l].set_title(f'predicted ts={l+1}', fontsize=10)
+                # axes[2, l].set_title(f'predicted, pix_err: {pix_err:.2f}%', fontsize=10)
                 axes[2, l].imshow(pred_ev_np)
                 axes[2, l].axis('off')
             # Save figure
