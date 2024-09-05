@@ -119,7 +119,8 @@ class EventGenerator(pl.LightningModule):
             # Use prev_pred if there are not enough events
             for seq_idx in range(event.size(1)):
                 if event[0,seq_idx].mean() < 0.1:   # Not enough events in sequence
-                    event[0,seq_idx] = self.prev_pred[0,seq_idx]
+                    event[0,seq_idx] = (event[0,seq_idx].bool() | self.prev_pred[0,seq_idx].bool()).float()
+                    # event[0,seq_idx] = self.prev_pred[0,seq_idx]
             
         with torch.no_grad():
             event_b = []
@@ -149,6 +150,7 @@ class EventGenerator(pl.LightningModule):
             
             if not event[0,l,...].shape == pred_ev.shape:   # [C H W]
                 pred_ev = pad_tensor_to_match(event[0,l,...], pred_ev)
+            assert event[0,l,...].shape == pred_ev.shape
             pred_ev_list.append(pred_ev)
         self.prev_pred = torch.stack(pred_ev_list, dim=0).unsqueeze(dim=0).float()  # [B L C H W]
         
@@ -215,6 +217,7 @@ class EventGenerator(pl.LightningModule):
             
             if not input_ev.shape == pred_ev.shape:
                 pred_ev = pad_array_to_match(input_ev, pred_ev)
+            assert input_ev.shape == pred_ev.shape
                 
             axes[0, l].set_title(f'timestep={l+1}, input', fontsize=10)  # Add title to the top row
             axes[0, l].imshow(input_ev)
@@ -252,6 +255,7 @@ class EventGenerator(pl.LightningModule):
                 
                 if not input_ev.shape == pred_ev.shape:
                     pred_ev = pad_array_to_match(input_ev, pred_ev)
+                assert input_ev.shape == pred_ev.shape
                 
                 axes[0, l].set_title(f'timestep={l+1}, real event', fontsize=10)  # Add title to the top row
                 axes[0, l].imshow(real)
@@ -264,7 +268,7 @@ class EventGenerator(pl.LightningModule):
                 axes[2, l].axis('off')
             # Save figure
             plt.tight_layout()
-            plt.savefig(f'sequence_vis_{self.fig_num}.png')
+            plt.savefig(f'sequence_vis_{self.global_step}.png')
             plt.clf()
             plt.close()
         self.fig_num += 1
