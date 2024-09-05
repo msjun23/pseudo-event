@@ -80,14 +80,15 @@ class EventGenerator(pl.LightningModule):
             event_b = torch.stack(event_b)      # [B L hw]
             event_indices = rearrange(event_b, 'B L hw -> (B hw) L').to(event.device)   # [Bhw L]
         
-        logits, pred_indices = self(event_indices)  # [Bhw L V], [Bhw L]
+        # logits, pred_indices = self(event_indices)  # [Bhw L V], [Bhw L]
+        logits, pred_indices = self(event_indices[:,:-1])  # [Bhw L V], [Bhw L], not use last as input
         '''
         input : a b c d e f g <- can be used as both input and self_gt
                  / / / / / /
         output: b c d e f g h <- 'h' is the event stream w/o gt at next timestep
         Calculate loss using above pairs
         '''
-        logits = logits[:,:-1,:]
+        # logits = logits[:,:-1,:]
         self_gt = event_indices[:,1:]
         logits = rearrange(logits, 'Bhw L V -> (Bhw L) V')
         self_gt = rearrange(self_gt, 'Bhw L -> (Bhw L)')
@@ -203,27 +204,31 @@ class EventGenerator(pl.LightningModule):
         h, w = H//2, W//3   # event patch size: [c=2 h=2 w=3]
         
         # Set figure size (row: 2, column: num_iterations)
-        num_iter = pred_indices.size(-1) - 1    # Except last timestep; no comparable input
+        # num_iter = pred_indices.size(-1) - 1    # Except last timestep; no comparable input
+        num_iter = pred_indices.size(-1)        # length of (L - 1)
         fig, axes = plt.subplots(2, num_iter, figsize=(num_iter * 2, 4))
         for l in range(num_iter):
-            # save_as_rb_img(event[0,l,...], f'original_img_{l}.png')
-            input_ev = return_as_rb_img(event[0,l+1,...])   # batch size must be 1, np, (H W 3)
+            input_ev = event[0,l+1,...]                 # [C H W]
+            # save_as_rb_img(input_ev, f'original_img_{l}.png')
+            input_ev_np = return_as_rb_img(input_ev)    # batch size must be 1, np, (H W 3)
             
             patches = self.event_vocab[pred_indices[:,l]]   # [Bhw 2 2 3], B=1
             patches = patches.view(h, w, 2, 2, 3)           # [h, w, 2, 2, 3]
-            pred_ev = patches.permute(2, 0, 3, 1, 4).contiguous().view(2, h*2, w*3) # [2 H W]
+            pred_ev = patches.permute(2, 0, 3, 1, 4).contiguous().view(2, h*2, w*3) # [C H W]
             # save_as_rb_img(pred_ev, f'predicted_img_{l}.png')
-            pred_ev = return_as_rb_img(pred_ev)             # np, (H W 3)
+            pred_ev_np = return_as_rb_img(pred_ev)          # np, (H W 3)
             
-            if not input_ev.shape == pred_ev.shape:
-                pred_ev = pad_array_to_match(input_ev, pred_ev)
-            assert input_ev.shape == pred_ev.shape
-                
+            if not input_ev_np.shape == pred_ev_np.shape:
+                pred_ev_np = pad_array_to_match(input_ev_np, pred_ev_np)
+            assert input_ev_np.shape == pred_ev_np.shape
+            
+            pix_err = np.abs(input_ev_np/255 - pred_ev_np/255).sum() / (2*H*W) * 100.
             axes[0, l].set_title(f'timestep={l+1}, input', fontsize=10)  # Add title to the top row
-            axes[0, l].imshow(input_ev)
+            axes[0, l].imshow(input_ev_np)
             axes[0, l].axis('off')
-            axes[1, l].set_title(f'predicted', fontsize=10)
-            axes[1, l].imshow(pred_ev)
+            axes[1, l].set_title(f'predicted, pix_err: {pix_err:.2f}%', fontsize=10)
+            axes[1, l].imshow(pred_ev_np)
+            # axes[1, l].text(0.5, -0.1, f'Pix_err: {pix_err:.2f}%', ha='center', transform=axes[0, l].transAxes, fontsize=8)
             axes[1, l].axis('off')
         # Save figure
         plt.tight_layout()
