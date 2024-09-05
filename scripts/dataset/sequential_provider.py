@@ -40,8 +40,8 @@ class SequentialEventReader(EventReaderAbstract):
         if events is None:
             raise StopIteration
         
-        self.t_start_us = self.t_start_us + (self.dt_us // self.num_bins)
         self.timestamps.append(self.t_start_us)
+        self.t_start_us = self.t_start_us + (self.dt_us // self.num_bins)
         return events
     
     def __getitem__(self, idx):
