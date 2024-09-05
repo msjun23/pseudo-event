@@ -159,7 +159,7 @@ class EventGenerator(pl.LightningModule):
         self.prev_pred = torch.stack(pred_ev_list, dim=0).unsqueeze(dim=0).float()  # [B L C H W]
         
         # self._show_sequences(event, pred_indices)
-        self._show_sequences_3row(real_event, event, pred_indices)
+        self._show_sequences_3row(real_event, event, pred_indices, batch_idx)
         
     def configure_optimizers(self):
         step_cycle = self.trainer.max_steps
@@ -239,7 +239,7 @@ class EventGenerator(pl.LightningModule):
         plt.clf()
         plt.close()
         
-    def _show_sequences_3row(self, real_event, event, pred_indices):
+    def _show_sequences_3row(self, real_event, event, pred_indices, batch_idx=0):
         if self.fig_num % 2 == 0:
             # event_input: [B L C H W]
             # pred_indices: [Bhw L]
@@ -247,36 +247,39 @@ class EventGenerator(pl.LightningModule):
             h, w = H//2, W//3   # event patch size: [c=2 h=2 w=3]
             
             # Set figure size (row: 3, column: num_iterations)
-            num_iter = pred_indices.size(-1) - 1    # Except last timestep; no comparable input
+            num_iter = pred_indices.size(-1) - 1    # Except fist timestep; no comparable output
             fig, axes = plt.subplots(3, num_iter, figsize=(num_iter * 2, 4))
             for l in range(num_iter):
-                real = return_as_rb_img(real_event[0,l+1,...])  # batch size must be 1, np, (H W 3)
+                real = real_event[0,l+1,...]
+                real_np = return_as_rb_img(real)    # batch size must be 1, np, (H W 3)
                 
-                # save_as_rb_img(event[0,l,...], f'original_img_{l}.png')
-                input_ev = return_as_rb_img(event[0,l+1,...])   # batch size must be 1, np, (H W 3)
+                input_ev = event[0,l+1,...]                 # [C H W]
+                # save_as_rb_img(input_ev, f'original_img_{l}.png')
+                input_ev_np = return_as_rb_img(input_ev)    # batch size must be 1, np, (H W 3)
                 
                 patches = self.event_vocab[pred_indices[:,l]]   # [Bhw 2 2 3], B=1
                 patches = patches.view(h, w, 2, 2, 3)           # [h, w, 2, 2, 3]
-                pred_ev = patches.permute(2, 0, 3, 1, 4).contiguous().view(2, h*2, w*3) # [2 H W]
+                pred_ev = patches.permute(2, 0, 3, 1, 4).contiguous().view(2, h*2, w*3) # [C H W]
                 # save_as_rb_img(pred_ev, f'predicted_img_{l}.png')
-                pred_ev = return_as_rb_img(pred_ev)             # np, (H W 3)
+                pred_ev_np = return_as_rb_img(pred_ev)          # np, (H W 3)
                 
-                if not input_ev.shape == pred_ev.shape:
-                    pred_ev = pad_array_to_match(input_ev, pred_ev)
-                assert input_ev.shape == pred_ev.shape
+                if not input_ev_np.shape == pred_ev_np.shape:
+                    pred_ev_np = pad_array_to_match(input_ev_np, pred_ev_np)
+                assert input_ev_np.shape == pred_ev_np.shape
                 
+                pix_err = np.abs(real_np/255 - pred_ev_np/255).sum() / (2*H*W) * 100.
                 axes[0, l].set_title(f'timestep={l+1}, real event', fontsize=10)  # Add title to the top row
-                axes[0, l].imshow(real)
+                axes[0, l].imshow(real_np)
                 axes[0, l].axis('off')
                 axes[1, l].set_title(f'input', fontsize=10)
-                axes[1, l].imshow(input_ev)
+                axes[1, l].imshow(input_ev_np)
                 axes[1, l].axis('off')
-                axes[2, l].set_title(f'predicted', fontsize=10)
-                axes[2, l].imshow(pred_ev)
+                axes[2, l].set_title(f'predicted, pix_err: {pix_err:.2f}%', fontsize=10)
+                axes[2, l].imshow(pred_ev_np)
                 axes[2, l].axis('off')
             # Save figure
             plt.tight_layout()
-            plt.savefig(f'sequence_vis_{self.global_step}.png')
+            plt.savefig(f'sequence_vis_{batch_idx}.png')
             plt.clf()
             plt.close()
         self.fig_num += 1
