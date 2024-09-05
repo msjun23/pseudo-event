@@ -12,7 +12,7 @@ def encode_patches_to_vocab(data):
     # w = W // 3
     
     # Apply sliding window (stride=2 in height, stride=3 in width)
-    patches = F.unfold(data.unsqueeze(0), kernel_size=(2,3), stride=(2,3)).squeeze().T
+    patches = F.unfold(data.unsqueeze(0), kernel_size=(2,3), stride=(2,3)).squeeze().T  # [N, 12]
     
     # Match each patch to an index in event_vocab
     indices = []
