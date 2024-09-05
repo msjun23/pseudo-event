@@ -42,12 +42,14 @@ def pad_tensor_to_match(origin, pred):
     
     return padded_pred
 
-a = np.random.randn(480,640,3)
-b = np.random.randn(480,639,3)
-b = pad_array_to_match(a,b)
-print(a.shape, b.shape)
+if __name__=='__main__':
+    # To validate functions
+    a = np.random.randn(480,640,3)
+    b = np.random.randn(480,639,3)
+    b = pad_array_to_match(a,b)
+    print(a.shape, b.shape)
 
-c = torch.randn([3,480,640])
-d = torch.randn([3,480,639])
-d = pad_tensor_to_match(c,d)
-print(c.shape, d.shape)
+    c = torch.randn([3,480,640])
+    d = torch.randn([3,480,639])
+    d = pad_tensor_to_match(c,d)
+    print(c.shape, d.shape)
