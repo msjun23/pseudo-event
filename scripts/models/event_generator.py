@@ -106,7 +106,10 @@ class EventGenerator(pl.LightningModule):
         self.trainer.save_checkpoint(checkpoint_path)
         
     def on_train_epoch_end(self):
-        self._save_model_checkpoint()
+        # Include loss info to file name
+        loss = f"{self.trainer.callback_metrics['train_loss'].item():.4f}"
+        checkpoint_path = f'checkpoints/epoch_{self.current_epoch}_loss_{loss}.ckpt'
+        self.trainer.save_checkpoint(checkpoint_path)
         
     def test_step(self, batch, batch_idx):
         seq_name = batch['sequence_name']
@@ -277,9 +280,3 @@ class EventGenerator(pl.LightningModule):
             plt.clf()
             plt.close()
         self.fig_num += 1
-    
-    def _save_model_checkpoint(self):
-        # Include loss info to file name
-        loss_str = f"{self.trainer.callback_metrics['train_loss'].item():.4f}"
-        checkpoint_path = f'checkpoints/epoch_{self.current_epoch}_loss_{loss_str}.ckpt'
-        self.trainer.save_checkpoint(checkpoint_path)
