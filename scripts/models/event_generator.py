@@ -205,7 +205,8 @@ class EventGenerator(pl.LightningModule):
         # event_input: [B L C H W]
         # pred_indices: [Bhw L]
         H, W = event.shape[3:]
-        h, w = H//2, W//3   # event patch size: [c=2 h=2 w=3]
+        ph, pw = 2, 3
+        h, w = H//ph, W//pw   # event patch size: [c=2 ph pw]
         
         # Set figure size (row: 2, column: num_iterations)
         # num_iter = pred_indices.size(-1) - 1    # Except last timestep; no comparable input
@@ -217,8 +218,8 @@ class EventGenerator(pl.LightningModule):
             input_ev_np = return_as_rb_img(input_ev)    # batch size must be 1, np, (H W 3)
             
             patches = self.event_vocab[pred_indices[:,l]]   # [Bhw 2 2 3], B=1
-            patches = patches.view(h, w, 2, 2, 3)           # [h, w, 2, 2, 3]
-            pred_ev = patches.permute(2, 0, 3, 1, 4).contiguous().view(2, h*2, w*3) # [C H W]
+            patches = patches.view(h, w, 2, ph, pw)           # [h, w, 2, ph, pw]
+            pred_ev = patches.permute(2, 0, 3, 1, 4).contiguous().view(2, h*ph, w*pw) # [C H W]
             # save_as_rb_img(pred_ev, f'predicted_img_{l}.png')
             pred_ev_np = return_as_rb_img(pred_ev)          # np, (H W 3)
             
@@ -248,7 +249,8 @@ class EventGenerator(pl.LightningModule):
             # event_input: [B L C H W]
             # pred_indices: [Bhw L]
             H, W = event.shape[3:]
-            h, w = H//2, W//3   # event patch size: [c=2 h=2 w=3]
+            ph, pw = 2, 3
+            h, w = H//ph, W//pw   # event patch size: [c=2 ph pw]
             
             # Set figure size (row: 3, column: num_iterations)
             # num_iter = pred_indices.size(-1) - 1    # Except fist timestep; no comparable output
@@ -263,8 +265,8 @@ class EventGenerator(pl.LightningModule):
                 input_ev_np = return_as_rb_img(input_ev)    # batch size must be 1, np, (H W 3)
                 
                 patches = self.event_vocab[pred_indices[:,l]]   # [Bhw 2 2 3], B=1
-                patches = patches.view(h, w, 2, 2, 3)           # [h, w, 2, 2, 3]
-                pred_ev = patches.permute(2, 0, 3, 1, 4).contiguous().view(2, h*2, w*3) # [C H W]
+                patches = patches.view(h, w, 2, ph, pw)           # [h, w, 2, ph, pw]
+                pred_ev = patches.permute(2, 0, 3, 1, 4).contiguous().view(2, h*ph, w*pw) # [C H W]
                 # save_as_rb_img(pred_ev, f'predicted_img_{l}.png')
                 pred_ev_np = return_as_rb_img(pred_ev)          # np, (H W 3)
                 
