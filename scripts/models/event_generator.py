@@ -101,9 +101,10 @@ class EventGenerator(pl.LightningModule):
     
     def on_train_batch_end(self, outputs, batch, batch_idx):
         # Save checkpoint every end of step
-        loss = outputs['loss'].item()
-        checkpoint_path = f'checkpoints/step_{self.global_step}_loss_{loss:.4f}.ckpt'
-        self.trainer.save_checkpoint(checkpoint_path)
+        if self.global_step % 100 == 0:
+            loss = outputs['loss'].item()
+            checkpoint_path = f'checkpoints/step_{self.global_step}_loss_{loss:.4f}.ckpt'
+            self.trainer.save_checkpoint(checkpoint_path)
         
     def on_train_epoch_end(self):
         # Include loss info to file name
@@ -231,7 +232,10 @@ class EventGenerator(pl.LightningModule):
             axes[0, l].axis('off')
             axes[1, l].set_title(f'predicted, pix_err: {pix_err:.2f}%', fontsize=10)
             axes[1, l].imshow(pred_ev_np)
-            # axes[1, l].text(0.5, -0.1, f'Pix_err: {pix_err:.2f}%', ha='center', transform=axes[0, l].transAxes, fontsize=8)
+            # To debug
+            # Comment out below two lines when you use for real
+            diff_w_prev = np.abs(input_ev_np/255 - return_as_rb_img(event[0,l,...])/255).sum() / (2*H*W) * 100
+            axes[1, l].text(0.5, -0.1, f'diff_w_prev: {diff_w_prev:.2f}%', ha='center', transform=axes[0, l].transAxes, fontsize=8)
             axes[1, l].axis('off')
         # Save figure
         plt.tight_layout()
