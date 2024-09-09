@@ -10,6 +10,7 @@ from torch.utils.data import Dataset
 
 from dataset.utils.representations import VoxelGrid, OnOffFrame
 from dataset.utils.eventslicer import EventSlicer
+from dataset.utils.transforms import *
 
 
 class Sequence(Dataset):
@@ -34,7 +35,8 @@ class Sequence(Dataset):
 
     def __init__(self, seq_path: Path, mode: str='train', delta_t_ms: int=50, num_bins: int=10, 
                  representation: str='on_off', 
-                 stereo: bool=True, disp_gt: bool=True):
+                 stereo: bool=True, disp_gt: bool=True, 
+                 edit_height=None, edit_width=None):
         assert num_bins >= 1
         # assert delta_t_ms <= 100, 'adapt this code, if duration is higher than 100 ms'
         assert seq_path.is_dir(), print(seq_path)
@@ -46,6 +48,15 @@ class Sequence(Dataset):
         self.height = 480
         self.width = 640
         self.num_bins = num_bins
+        
+        # Set data transforms
+        if edit_height is not None or edit_width is not None:
+        # if self.mode in ['train']:
+            self.transforms = Compose([
+                RandomCrop(crop_height=edit_height, crop_width=edit_width), 
+            ])
+        else:
+            self.transforms = None
         
         # Save sequence name
         self.seq_name = seq_path.stem
@@ -204,5 +215,7 @@ class Sequence(Dataset):
             if 'event' not in output:
                 output['event'] = dict()
             output['event'][location] = event_representation
-
+            
+        if self.transforms is not None:
+            output = self.transforms(output)
         return output

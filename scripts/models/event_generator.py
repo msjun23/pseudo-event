@@ -210,7 +210,8 @@ class EventGenerator(pl.LightningModule):
         
         # Set figure size (row: 2, column: num_iterations)
         # num_iter = pred_indices.size(-1) - 1    # Except last timestep; no comparable input
-        num_iter = pred_indices.size(-1)        # length of (L - 1)
+        # num_iter = pred_indices.size(-1)        # length of (L - 1)
+        num_iter = 10
         fig, axes = plt.subplots(2, num_iter, figsize=(num_iter * 2, 4))
         for l in range(num_iter):
             input_ev = event[0,l+1,...]                 # [C H W]
@@ -245,49 +246,47 @@ class EventGenerator(pl.LightningModule):
         plt.close()
         
     def _show_sequences_3row(self, real_event, event, pred_indices, batch_idx=0):
-        if self.fig_num % 2 == 0:
-            # event_input: [B L C H W]
-            # pred_indices: [Bhw L]
-            H, W = event.shape[3:]
-            ph, pw = 2, 3
-            h, w = H//ph, W//pw   # event patch size: [c=2 ph pw]
+        # event_input: [B L C H W]
+        # pred_indices: [Bhw L]
+        H, W = event.shape[3:]
+        ph, pw = 2, 3
+        h, w = H//ph, W//pw   # event patch size: [c=2 ph pw]
+        
+        # Set figure size (row: 3, column: num_iterations)
+        # num_iter = pred_indices.size(-1) - 1    # Except fist timestep; no comparable output
+        num_iter = pred_indices.size(-1)
+        fig, axes = plt.subplots(3, num_iter, figsize=(num_iter * 2, 4))
+        for l in range(num_iter):
+            real = real_event[0,l,...]
+            real_np = return_as_rb_img(real)    # batch size must be 1, np, (H W 3)
             
-            # Set figure size (row: 3, column: num_iterations)
-            # num_iter = pred_indices.size(-1) - 1    # Except fist timestep; no comparable output
-            num_iter = pred_indices.size(-1)
-            fig, axes = plt.subplots(3, num_iter, figsize=(num_iter * 2, 4))
-            for l in range(num_iter):
-                real = real_event[0,l,...]
-                real_np = return_as_rb_img(real)    # batch size must be 1, np, (H W 3)
-                
-                input_ev = event[0,l,...]                 # [C H W]
-                # save_as_rb_img(input_ev, f'original_img_{l}.png')
-                input_ev_np = return_as_rb_img(input_ev)    # batch size must be 1, np, (H W 3)
-                
-                patches = self.event_vocab[pred_indices[:,l]]   # [Bhw 2 2 3], B=1
-                patches = patches.view(h, w, 2, ph, pw)           # [h, w, 2, ph, pw]
-                pred_ev = patches.permute(2, 0, 3, 1, 4).contiguous().view(2, h*ph, w*pw) # [C H W]
-                # save_as_rb_img(pred_ev, f'predicted_img_{l}.png')
-                pred_ev_np = return_as_rb_img(pred_ev)          # np, (H W 3)
-                
-                if not input_ev_np.shape == pred_ev_np.shape:
-                    pred_ev_np = pad_array_to_match(input_ev_np, pred_ev_np)
-                assert input_ev_np.shape == pred_ev_np.shape
-                
-                # pix_err = np.abs(real_np/255 - pred_ev_np/255).sum() / (2*H*W) * 100.
-                axes[0, l].set_title(f'timestep={l}, real event', fontsize=10)  # Add title to the top row
-                axes[0, l].imshow(real_np)
-                axes[0, l].axis('off')
-                axes[1, l].set_title(f'input', fontsize=10)
-                axes[1, l].imshow(input_ev_np)
-                axes[1, l].axis('off')
-                axes[2, l].set_title(f'predicted ts={l+1}', fontsize=10)
-                # axes[2, l].set_title(f'predicted, pix_err: {pix_err:.2f}%', fontsize=10)
-                axes[2, l].imshow(pred_ev_np)
-                axes[2, l].axis('off')
-            # Save figure
-            plt.tight_layout()
-            plt.savefig(f'sequence_vis_{batch_idx}.png')
-            plt.clf()
-            plt.close()
-        self.fig_num += 1
+            input_ev = event[0,l,...]                 # [C H W]
+            # save_as_rb_img(input_ev, f'original_img_{l}.png')
+            input_ev_np = return_as_rb_img(input_ev)    # batch size must be 1, np, (H W 3)
+            
+            patches = self.event_vocab[pred_indices[:,l]]   # [Bhw 2 2 3], B=1
+            patches = patches.view(h, w, 2, ph, pw)           # [h, w, 2, ph, pw]
+            pred_ev = patches.permute(2, 0, 3, 1, 4).contiguous().view(2, h*ph, w*pw) # [C H W]
+            # save_as_rb_img(pred_ev, f'predicted_img_{l}.png')
+            pred_ev_np = return_as_rb_img(pred_ev)          # np, (H W 3)
+            
+            if not input_ev_np.shape == pred_ev_np.shape:
+                pred_ev_np = pad_array_to_match(input_ev_np, pred_ev_np)
+            assert input_ev_np.shape == pred_ev_np.shape
+            
+            # pix_err = np.abs(real_np/255 - pred_ev_np/255).sum() / (2*H*W) * 100.
+            axes[0, l].set_title(f'timestep={l}, real event', fontsize=10)  # Add title to the top row
+            axes[0, l].imshow(real_np)
+            axes[0, l].axis('off')
+            axes[1, l].set_title(f'input', fontsize=10)
+            axes[1, l].imshow(input_ev_np)
+            axes[1, l].axis('off')
+            axes[2, l].set_title(f'predicted ts={l+1}', fontsize=10)
+            # axes[2, l].set_title(f'predicted, pix_err: {pix_err:.2f}%', fontsize=10)
+            axes[2, l].imshow(pred_ev_np)
+            axes[2, l].axis('off')
+        # Save figure
+        plt.tight_layout()
+        plt.savefig(f'sequence_vis_{batch_idx}.png')
+        plt.clf()
+        plt.close()
