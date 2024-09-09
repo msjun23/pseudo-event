@@ -3,10 +3,10 @@ dataset:
   stereo: False
   disp_gt: False
   representation: on_off
-  delta_t_ms: 50
-  num_bins: 10
-  crop_height: 432
-  crop_width: 576
+  delta_t_ms: 1000
+  num_bins: 100
+  crop_height: 140
+  crop_width: 210
   pad_height: 480
   pad_width: 648
 dataloader:
