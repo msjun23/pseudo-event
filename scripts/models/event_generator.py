@@ -67,6 +67,13 @@ class EventGenerator(pl.LightningModule):
         seq_name = batch['sequence_name']
         file_index = batch['file_index']
         event = batch['event']['left']      # [B L C H W], B (batch size) must be '1'
+        # # To use sparse ts for training
+        # batch_event = batch['event']['left']      # [B L C H W], B (batch size) must be '1'
+        # sparse_event_list = []
+        # for ts in range(batch_event.size(1)):
+        #     if ts % 10 == 0:
+        #         sparse_event_list.append(batch_event[:,ts,...])
+        # event = torch.stack(sparse_event_list, dim=1)
         # gt = batch['disparity_gt']
         
         with torch.no_grad():
