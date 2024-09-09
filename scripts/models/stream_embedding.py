@@ -6,13 +6,13 @@ from einops import rearrange
 
 
 def encode_patches_to_vocab(data):
-    # Patch size is [2 2 3], [c h w]
     # _, H, W = data.shape
     # h = H // 2
     # w = W // 3
+    ph, pw = 2, 3   # patch height, patch width; [2 2 3]
     
     # Apply sliding window (stride=2 in height, stride=3 in width)
-    patches = F.unfold(data.unsqueeze(0), kernel_size=(2,3), stride=(2,3)).squeeze().T  # [N, 12]
+    patches = F.unfold(data.unsqueeze(0), kernel_size=(ph,pw), stride=(ph,pw)).squeeze().T  # [N, 2*ph*pw]
     
     # Match each patch to an index in event_vocab
     indices = []

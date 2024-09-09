@@ -4,20 +4,22 @@ from einops import rearrange
 
 from scripts.utils.rb_image import save_as_rb_img
 
-# Create all possible 2x2x3 binary tensor combinations
-all_combinations = list(itertools.product([0, 1], repeat=12))
+h, w = 2, 3
+
+# Create all possible [2 x h x w] binary tensor combinations
+all_combinations = list(itertools.product([0, 1], repeat=2*h*w))
 
 # Create and Initialize event_vocab
 event_vocab = []
 
-# Convert each combination to a 2x2x3 tensor and add it to event_vocab
+# Convert each combination to a [2 x h x w] tensor and add it to event_vocab
 for combination in all_combinations:
-    tensor = torch.tensor(combination, dtype=torch.int).reshape(2, 2, 3)
+    tensor = torch.tensor(combination, dtype=torch.int).reshape(2, h, w)
     event_vocab.append(tensor)
 
 # Save event_vocab as torch tensor
 event_vocab = torch.stack(event_vocab)
-torch.save(event_vocab, 'event_vocab.pt')
+torch.save(event_vocab, f'event_vocab_{h}x{w}.pt')
 
 
 # Example usage
