@@ -14,17 +14,22 @@ def encode_patches_to_vocab(data):
     # Apply sliding window (stride=2 in height, stride=3 in width)
     patches = F.unfold(data.unsqueeze(0), kernel_size=(ph,pw), stride=(ph,pw)).squeeze().T  # [N, 2*ph*pw]
     
-    # Match each patch to an index in event_vocab
-    indices = []
-    for patch in patches:
-        # Convert the tensor to integer (binary)
-        binary_str = ''.join([str(int(x.item())) for x in patch])
-        # Convert binary string to decimal
-        idx = int(binary_str, 2)
-        indices.append(idx)
+    # # Match each patch to an index in event_vocab
+    # indices = []
+    # for patch in patches:
+    #     # Convert the tensor to integer (binary)
+    #     binary_str = ''.join([str(int(x.item())) for x in patch])
+    #     # Convert binary string to decimal
+    #     idx = int(binary_str, 2)
+    #     indices.append(idx)
         
-    # Convert indices to a tensor
-    indices_tensor = torch.tensor(indices)  # length: h x w
+    # # Convert indices to a tensor
+    # indices_tensor = torch.tensor(indices)  # length: h x w
+    
+    # Convert patches to binary strings and then to decimal indices, using GPU
+    # Cast the patches to int and shift the bits to construct the binary representation
+    powers_of_two = 2 ** torch.arange(patches.shape[1] - 1, -1, -1, device=patches.device)
+    indices_tensor = (patches.int() * powers_of_two).sum(dim=1)  # Binary to decimal conversion
     
     return indices_tensor
 
