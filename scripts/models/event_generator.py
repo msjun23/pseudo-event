@@ -77,23 +77,17 @@ class EventGenerator(pl.LightningModule):
         # gt = batch['disparity_gt']
         
         with torch.no_grad():
-            event_b = []
-            for lchw in event:
-                event_l = []
-                for chw in lchw:
-                    event_l.append(encode_patches_to_vocab(chw))
-                event_l = torch.stack(event_l)  # [L hw]
-                event_b.append(event_l)
-            event_b = torch.stack(event_b)      # [B L hw]
-            event_indices = rearrange(event_b, 'B L hw -> (B hw) L').to(event.device)   # [Bhw L]
+            # Frame to indices
+            B_hw_L = torch.stack([encode_patches_to_vocab(lchw.float()).T for lchw in event], dim=0) # [hw L]
+            event_indices = rearrange(B_hw_L, 'B hw L -> (B hw) L').to(event.device)    # [Bhw L]
         
         # logits, pred_indices = self(event_indices)  # [Bhw L V], [Bhw L]
         logits, pred_indices = self(event_indices[:,:-1])  # [Bhw L V], [Bhw L], not use last as input
         '''
-        input : a b c d e f g <- can be used as both input and self_gt
-                 / / / / / /
-        output: b c d e f g h <- 'h' is the event stream w/o gt at next timestep
-        Calculate loss using above pairs
+        input : a b c d e f g   <- can be used as both input and self_gt
+                 \ \ \ \ \ \    <- prediction pairs
+        output:   b c d e f g h <- 'h' is the event stream w/o gt at next timestep
+        Calculate loss using above pairs; b - g pairs
         '''
         # logits = logits[:,:-1,:]
         self_gt = event_indices[:,1:]
