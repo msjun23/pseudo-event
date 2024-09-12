@@ -19,9 +19,9 @@ class CenterCrop:
         
     def __call__(self, sample):
         if 'event' in sample.keys():
-            ori_height, ori_width = sample['event']['left'].shape[-2:]
+            ori_height, ori_width = sample['event'].shape[-2:]
         elif 'image' in sample.keys():
-            ori_height, ori_width = sample['image']['left'].shape[-2:]
+            ori_height, ori_width = sample['image'].shape[-2:]
         else:
             raise NotImplementedError
         
@@ -39,9 +39,9 @@ class CenterCrop:
         ## Event data
         if 'event' in sample.keys():
             # Crop event data
-            for k, v in sample['event'].items():
-                # # timestep, H, W
-                sample['event'][k] = sample['event'][k][:, :, start_y:end_y, start_x:end_x]
+            # for k, v in sample['event'].items():
+            #     # # timestep, H, W
+            sample['event'] = sample['event'][:, :, start_y:end_y, start_x:end_x]
         ## Disparity_gt
         if 'disparity_gt' in sample.keys():
             # Crop disparity_gt
