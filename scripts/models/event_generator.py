@@ -78,7 +78,7 @@ class EventGenerator(pl.LightningModule):
         
         with torch.no_grad():
             # Frame to indices
-            B_hw_L = torch.stack([encode_patches_to_vocab(lchw.float()).T for lchw in event], dim=0) # [hw L]
+            B_hw_L = torch.stack([encode_patches_to_vocab(lchw.float()).T for lchw in event], dim=0)    # [hw L] * B
             event_indices = rearrange(B_hw_L, 'B hw L -> (B hw) L').to(event.device)    # [Bhw L]
         
         # logits, pred_indices = self(event_indices)  # [Bhw L V], [Bhw L]
@@ -102,7 +102,7 @@ class EventGenerator(pl.LightningModule):
     
     def on_train_batch_end(self, outputs, batch, batch_idx):
         # Save checkpoint every end of step
-        if self.global_step % 100 == 0:
+        if self.global_step % 1000 == 0:
             loss = outputs['loss'].item()
             checkpoint_path = f'checkpoints/step_{self.global_step}_loss_{loss:.4f}.ckpt'
             self.trainer.save_checkpoint(checkpoint_path)
@@ -120,48 +120,65 @@ class EventGenerator(pl.LightningModule):
         H, W = event.shape[3:]
         h, w = H//2, W//3   # event patch size: [c=2 h=2 w=3]
         
-        # Update input event stream using previous prediction
-        if self.prev_pred is not None:
-            # Use prev_pred if there are not enough events
-            for seq_idx in range(event.size(1)):
-                if event[0,seq_idx].mean() < 0.1:   # Not enough events in sequence
-                    event[0,seq_idx] = (event[0,seq_idx].bool() | self.prev_pred[0,seq_idx].bool()).float()
-                    # event[0,seq_idx] = self.prev_pred[0,seq_idx]
+        # # Update input event stream using previous prediction
+        # if self.prev_pred is not None:
+        #     # Use prev_pred if there are not enough events
+        #     for seq_idx in range(event.size(1)):
+        #         if event[0,seq_idx].mean() < 0.1:   # Not enough events in sequence
+        #             event[0,seq_idx] = (event[0,seq_idx].bool() | self.prev_pred[0,seq_idx].bool()).float()
+        #             # event[0,seq_idx] = self.prev_pred[0,seq_idx]
+        
+        # Define the 4 sub-tensors by slicing
+        sub_events = [
+            event[..., 0:H//2, 0:W//2], # Top-left
+            event[..., 0:H//2, W//2:W], # Top-right
+            event[..., H//2:H, 0:W//2], # Bottom-left
+            event[..., H//2:H, W//2:W]  # Bottom-right
+        ]
+        # Loop through the sub-events
+        sub_pred = []
+        for i, sub_event in enumerate(sub_events):  # [B L C H W]
+            sub_H, sub_W = sub_event.shape[3:]
+            sub_h, sub_w = sub_H//2, sub_W//3   # event patch size: [c=2 h=2 w=3]
             
-        with torch.no_grad():
-            event_b = []
-            for lchw in event:
-                event_l = []
-                for chw in lchw:
-                    event_l.append(encode_patches_to_vocab(chw))
-                event_l = torch.stack(event_l)  # [L hw]
-                event_b.append(event_l)
-            event_b = torch.stack(event_b)      # [B L hw]
-            event_indices = rearrange(event_b, 'B L hw -> (B hw) L').to(event.device)   # [Bhw L]
-        
-        logits, pred_indices = self(event_indices)  # [Bhw L V], [Bhw L]
-        '''
-        input : a b c d e f g <- can be used as both input and self_gt
-                 / / / / / /
-        output: b c d e f g h <- 'h' is the event stream w/o gt at next timestep
-        Calculate loss using above pairs
-        '''
-        
-        # Save output sequence as self.prev_pred, [B L C H W]
-        pred_ev_list = []
-        for l in range(pred_indices.size(-1)):
-            patches = self.event_vocab[pred_indices[:,l]]   # [Bhw 2 2 3], B=1
-            patches = patches.view(h, w, 2, 2, 3)           # [h w 2 2 3]
-            pred_ev = patches.permute(2, 0, 3, 1, 4).contiguous().view(2, h*2, w*3) # [2 H W]
+            # Frame to indices
+            B_hw_L = torch.stack([encode_patches_to_vocab(lchw.float()).T for lchw in sub_event], dim=0)    # [hw L] * B
+            event_indices = rearrange(B_hw_L, 'B hw L -> (B hw) L').to(sub_event.device)    # [Bhw L]
             
-            if not event[0,l,...].shape == pred_ev.shape:   # [C H W]
-                pred_ev = pad_tensor_to_match(event[0,l,...], pred_ev)
-            assert event[0,l,...].shape == pred_ev.shape
-            pred_ev_list.append(pred_ev)
-        self.prev_pred = torch.stack(pred_ev_list, dim=0).unsqueeze(dim=0).float()  # [B L C H W]
+            logits, pred_indices = self(event_indices)  # [Bhw L V], [Bhw L]
+            '''
+            input : a b c d e f g   <- can be used as both input and self_gt
+                    \ \ \ \ \ \    <- prediction pairs
+            output:   b c d e f g h <- 'h' is the event stream w/o gt at next timestep
+            Calculate loss using above pairs; b - g pairs
+            '''
+            
+            # Save output sequence as self.prev_pred, [B L C H W]
+            pred_ev_list = []
+            for l in range(pred_indices.size(-1)):
+                patches = self.event_vocab[pred_indices[:,l]]   # [Bhw 2 2 3], B=1
+                patches = patches.view(sub_h, sub_w, 2, 2, 3)   # [h w 2 2 3]
+                pred_ev = patches.permute(2, 0, 3, 1, 4).contiguous().view(2, sub_h*2, sub_w*3) # [2 H W]
+                
+                if not sub_event[0,l,...].shape == pred_ev.shape:   # [C H W]
+                    pred_ev = pad_tensor_to_match(sub_event[0,l,...], pred_ev)
+                assert sub_event[0,l,...].shape == pred_ev.shape
+                pred_ev_list.append(pred_ev)
+            sub_pred.append(torch.stack(pred_ev_list, dim=0).unsqueeze(dim=0).to(torch.uint8))  # [B L C H W]
+            del logits, pred_indices    # To free GPU memory
+            
+        # Sub-tensors after processing
+        top_left = sub_pred[0]      # [B, L, C, H//2, W//2]
+        top_right = sub_pred[1]     # [B, L, C, H//2, W//2]
+        bottom_left = sub_pred[2]   # [B, L, C, H//2, W//2]
+        bottom_right = sub_pred[3]  # [B, L, C, H//2, W//2]
+        # Recreate the top half and bottom half by concatenating horizontally (dim=-1 for W dimension)
+        top_half = torch.cat((top_left, top_right), dim=-1)             # [B, L, C, H//2, W]
+        bottom_half = torch.cat((bottom_left, bottom_right), dim=-1)    # [B, L, C, H//2, W]
+        full_ev_pred = torch.cat((top_half, bottom_half), dim=-2)       # [B, L, C, H, W]
+        self.prev_pred = full_ev_pred
         
-        # self._show_sequences(event, pred_indices)
-        self._show_sequences_3row(real_event, event, pred_indices, batch_idx)
+        self._show_sequences_3row(real_event, event, full_ev_pred, batch_idx)
         
     def configure_optimizers(self):
         step_cycle = self.trainer.max_steps
@@ -246,36 +263,32 @@ class EventGenerator(pl.LightningModule):
         plt.clf()
         plt.close()
         
-    def _show_sequences_3row(self, real_event, event, pred_indices, batch_idx=0):
-        # event_input: [B L C H W]
-        # pred_indices: [Bhw L]
+    def _show_sequences_3row(self, real_event, event, pred_event, batch_idx=0):
+        # real_event, event, pred_event: [B L C H W]
         H, W = event.shape[3:]
         ph, pw = 2, 3
         h, w = H//ph, W//pw   # event patch size: [c=2 ph pw]
         
         # Set figure size (row: 3, column: num_iterations)
         # num_iter = pred_indices.size(-1) - 1    # Except fist timestep; no comparable output
-        num_iter = pred_indices.size(-1)
+        # num_iter = event.size(1)
+        num_iter = 10
         fig, axes = plt.subplots(3, num_iter, figsize=(num_iter * 2, 4))
         for l in range(num_iter):
-            real = real_event[0,l,...]
-            real_np = return_as_rb_img(real)    # batch size must be 1, np, (H W 3)
+            real = real_event[0,l,...]                  # [C H W]
+            real_np = return_as_rb_img(real)            # batch size must be 1, np, (H W 3)
             
-            input_ev = event[0,l,...]                 # [C H W]
-            # save_as_rb_img(input_ev, f'original_img_{l}.png')
+            input_ev = event[0,l,...]                   # [C H W]
             input_ev_np = return_as_rb_img(input_ev)    # batch size must be 1, np, (H W 3)
             
-            patches = self.event_vocab[pred_indices[:,l]]   # [Bhw 2 2 3], B=1
-            patches = patches.view(h, w, 2, ph, pw)           # [h, w, 2, ph, pw]
-            pred_ev = patches.permute(2, 0, 3, 1, 4).contiguous().view(2, h*ph, w*pw) # [C H W]
-            # save_as_rb_img(pred_ev, f'predicted_img_{l}.png')
-            pred_ev_np = return_as_rb_img(pred_ev)          # np, (H W 3)
+            pred_ev = pred_event[0,l,...]               # [C H W]
+            pred_ev_np = return_as_rb_img(pred_ev)      # batch size must be 1, np, (H W 3)
             
             if not input_ev_np.shape == pred_ev_np.shape:
                 pred_ev_np = pad_array_to_match(input_ev_np, pred_ev_np)
             assert input_ev_np.shape == pred_ev_np.shape
             
-            # pix_err = np.abs(real_np/255 - pred_ev_np/255).sum() / (2*H*W) * 100.
+            pix_err = np.abs(real_np/255 - pred_ev_np/255).sum() / (2*H*W) * 100.
             axes[0, l].set_title(f'timestep={l}, real event', fontsize=10)  # Add title to the top row
             axes[0, l].imshow(real_np)
             axes[0, l].axis('off')
@@ -283,7 +296,7 @@ class EventGenerator(pl.LightningModule):
             axes[1, l].imshow(input_ev_np)
             axes[1, l].axis('off')
             axes[2, l].set_title(f'predicted ts={l+1}', fontsize=10)
-            # axes[2, l].set_title(f'predicted, pix_err: {pix_err:.2f}%', fontsize=10)
+            axes[2, l].set_title(f'predicted, pix_err: {pix_err:.2f}%', fontsize=10)
             axes[2, l].imshow(pred_ev_np)
             axes[2, l].axis('off')
         # Save figure
