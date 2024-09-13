@@ -79,7 +79,7 @@ class EventGenerator(pl.LightningModule):
         with torch.no_grad():
             # Frame to indices
             B_hw_L = torch.stack([encode_patches_to_vocab(lchw.float()).T for lchw in event], dim=0)    # [hw L] * B
-            event_indices = rearrange(B_hw_L, 'B hw L -> (B hw) L').to(event.device)    # [Bhw L]
+            event_indices = rearrange(B_hw_L, 'B hw L -> (B hw) L').to(event.device)    # [Bhw L], torch.int64
         
         # logits, pred_indices = self(event_indices)  # [Bhw L V], [Bhw L]
         logits, pred_indices = self(event_indices[:,:-1])  # [Bhw L V], [Bhw L], not use last as input
