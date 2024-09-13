@@ -4,21 +4,14 @@ defaults:
   - /optimizer: adamw
 
 name: EventGenerator
-# stream_embedding:
-#   in_channels: 2
-#   out_channels: 2
-#   kernel_size: 3
-#   stride: 2
-#   padding: 1
-#   step_mode: m
 vocab_path: /root/code/event_vocab.pt
 # ckpt_path: null
 # ckpt_path: /root/code/outputs/2024-08-30/17-54-41-785679-train-ratio-0.001-100ms-10bins/checkpoints/step_30_loss_2.4370.ckpt
-ckpt_path: /root/code/outputs/ckpts/server24_step_97_loss_0.5346.ckpt
+ckpt_path: /root/code/outputs/ckpts/server24_1000ms_100bins_cropping_step_9800_loss_0.5846.ckpt
 mamba:
-  d_model: 512
+  d_model: 256
   d_intermediate: 0
-  n_layer: 1
+  n_layer: 4
   vocab_size: 4096
   # ssm_cfg: dict = field(default_factory=dict)
   # attn_layer_idx: list = field(default_factory=list)
