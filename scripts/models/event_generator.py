@@ -42,7 +42,7 @@ class EventGenerator(pl.LightningModule):
             dataset_provider = DatasetProvider(**self.cfg_dataset.dataset)
             self.train_dataset = dataset_provider.get_train_dataset()
             
-            self.criterion = torch.nn.CrossEntropyLoss()
+            self.cross_entropy = nn.CrossEntropyLoss()
             
         # At inference
         if stage == 'test' or stage is None:
@@ -96,7 +96,7 @@ class EventGenerator(pl.LightningModule):
         
         self._show_sequences(event, pred_indices)
         
-        loss = self.criterion(logits, self_gt)
+        loss = self.cross_entropy(logits, self_gt)
         self.log('train_loss', loss, on_step=True, on_epoch=False, prog_bar=True, logger=True)
         return loss
     
