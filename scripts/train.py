@@ -13,6 +13,7 @@ import torch.distributed
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from lightning.pytorch.callbacks import LearningRateMonitor
+from utils.logger import setup_logger
 
 import models
 
@@ -57,6 +58,8 @@ def train(cfg):
     
 @hydra.main(config_path="configs", config_name="default", version_base="1.2")
 def main(cfg: OmegaConf):
+    setup_logger('terminal_log.txt')
+    
     # Initialize the process group if using DDP
     if 'RANK' in os.environ and 'WORLD_SIZE' in os.environ:
         dist.init_process_group(backend='nccl')
