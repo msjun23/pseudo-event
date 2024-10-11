@@ -80,6 +80,43 @@ class EventSlicer:
             assert events[dset_str].size == events['t'].size
         return events
 
+    def get_N_events(self, t_start_us: int, t_end_us: int, events_num=500000) -> Dict[str, np.ndarray]:
+        """Get events (p, x, y, t) within the specified number
+        Parameters
+        ----------
+        t_end_us: end time in microseconds
+        Returns
+        -------
+        events: dictionary of (p, x, y, t) or None if the number of events cannot be retrieved
+        """
+        assert t_start_us < t_end_us
+        
+        # We assume that the times are top-off-day, hence subtract offset:
+        t_start_us -= self.t_offset
+        t_end_us -= self.t_offset
+        
+        t_start_ms, t_end_ms = self.get_conservative_window_ms(t_start_us, t_end_us)
+        t_start_ms_idx = self.ms2idx(t_start_ms)
+        t_end_ms_idx = self.ms2idx(t_end_ms)
+        
+        if t_start_ms_idx is None or t_end_ms_idx is None:
+            # Cannot guarantee window size anymore
+            return None
+        
+        # Get fixed number of events
+        events = dict()
+        time_array_conservative = np.asarray(self.events['t'][t_start_ms_idx:t_end_ms_idx])
+        idx_start_offset, idx_end_offset = self.get_time_indices_offsets(time_array_conservative, t_start_us, t_end_us)
+        t_end_us_idx   = t_start_ms_idx + idx_end_offset
+        t_start_us_idx = t_end_us_idx - events_num if t_end_us_idx > events_num else 0
+        
+        for dset_str in ['x', 'y', 't', 'p']:
+            events[dset_str] = np.asarray(self.events[dset_str][t_start_us_idx:t_end_us_idx])
+            if events[dset_str].size < events_num:
+                events[dset_str] = np.pad(events[dset_str], (events_num-events[dset_str].size, 0), mode='constant')            
+        assert events['x'].size == events['y'].size == events['t'].size == events['p'].size
+        return events
+
 
     @staticmethod
     def get_conservative_window_ms(ts_start_us: int, ts_end_us) -> Tuple[int, int]:

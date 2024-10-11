@@ -49,6 +49,8 @@ class Sequence(Dataset):
         self.width = 640
         self.num_bins = num_bins
         
+        self.events_num = 10_000_000
+        
         # Set data transforms
         if edit_height is not None or edit_width is not None:
         # if self.mode in ['train']:
@@ -200,7 +202,8 @@ class Sequence(Dataset):
             }
         
         for location in self.locations:
-            event_data = self.event_slicers[location].get_events(ts_start, ts_end)
+            # event_data = self.event_slicers[location].get_events(ts_start, ts_end)
+            event_data = self.event_slicers[location].get_N_events(ts_start, ts_end, self.events_num)
 
             p = event_data['p']
             t = event_data['t']

@@ -36,13 +36,14 @@ class SequentialEventReader(EventReaderAbstract):
         t_end_us = self.t_start_us + self.dt_us
         if t_end_us > self.t_end_us:
             raise StopIteration
-        events = self.event_slicer.get_events(self.t_start_us, t_end_us)
-        if events is None:
-            raise StopIteration
+        # events = self.event_slicer.get_events(self.t_start_us, t_end_us)
+        # if events is None:
+        #     raise StopIteration
         
         self.timestamps.append(self.t_start_us)
         self.t_start_us = self.t_start_us + (self.dt_us // self.num_bins)
-        return events
+        # return events
+        return None
     
     def __getitem__(self, idx):
         t_start_us = self.timestamps[idx]
